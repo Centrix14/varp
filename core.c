@@ -1,7 +1,7 @@
 /*
  * varp interpreter
- * v0.1
- * 16.02.2020
+ * v0.2
+ * 17.02.2020
  * by Centrix
  */
 
@@ -18,6 +18,7 @@ typedef struct _var {
 } var;
 
 int is_func(char*);
+int is_such_var(char*);
 char *del_sym(char *str, int sym);
 char *get_token(char*, int, int*);
 void run(char*);
@@ -26,7 +27,8 @@ void print(char*),
 	 end(char*),
 	 comment(char*),
 	 let(char*),
-	 get_val(char*);
+	 get_val(char*),
+	 pd(char*);
 
 void (*funcs[])(char*) = {print, end, comment, let, get_val};
 char *names[] = {"print", "end", "\'", "let", "-v"};
@@ -60,8 +62,10 @@ void run(char *line) {
 			op_code = is_func(tok);
 		else if (op_code >= 0)
 			(*funcs[op_code])(tok);
+		else if (is_such_var(tok) >= 0)
+			sprintf(result, "%s", array[is_such_var(tok)].val);	
 		else
-			sprintf(result, "%s", tok);	
+			sprintf(result, "%s", tok);
 
 		tok = get_token(line, '/', &mpos);
 	}
@@ -106,11 +110,11 @@ char *get_token(char *str, int delim, int *pos) {
 		if (*sptr == delim && !sticking)
 			break;
 
-		if (strchr("\"", *sptr)) {
+		if (*sptr == '\"') {
 			sticking = !sticking;
 			sptr++;
 			continue;
-		}	
+		}
 
 		*optr = *sptr;
 		sptr++; optr++;
@@ -124,23 +128,9 @@ char *get_token(char *str, int delim, int *pos) {
 void print(char *arg) {
 	char *tmp = "";
 
-	if (*arg == '@') {
-		tmp = del_sym(arg, '@');
+	run(arg);
 
-		if (!strcmp(tmp, "res"))
-			printf("%s", result);
-		else if (is_such_var(tmp) >= 0)
-			printf("%s", array[is_such_var(tmp)].val);
-		else {
-			tmp = del_sym(tmp, '\"');	
-			run(tmp);
-			printf("%s", result);
-		}
-
-		return;
-	}	
-
-	puts(arg);
+	puts(result);
 	strcpy(result, "#1");
 }
 
@@ -163,6 +153,10 @@ void let(char *arg) {
 	indx = is_such_var(tmp);
 	if (indx >= 0) {
 		tmp = get_token(arg, ' ', &lpos);
+
+		run(tmp);
+		tmp = result;
+
 		if (tmp)
 			sprintf(array[indx].val, "%s", tmp);
 		else
@@ -172,6 +166,9 @@ void let(char *arg) {
 		sprintf(array[count].name, "%s", tmp);
 
 		tmp = get_token(arg, ' ', &lpos);
+		run(tmp);
+		tmp = result;
+
 		if (tmp)
 			sprintf(array[count].val, "%s", tmp);
 		else
