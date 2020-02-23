@@ -1,7 +1,7 @@
 /*
  * varp interpreter
- * v0.2
- * 17.02.2020
+ * v0.3
+ * 23.02.2020
  * by Centrix
  */
 
@@ -9,7 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define LEN 5
+#define LEN 7
 
 typedef struct _var {
 	char name[256];
@@ -27,11 +27,12 @@ void print(char*),
 	 end(char*),
 	 comment(char*),
 	 let(char*),
-	 get_val(char*),
-	 pd(char*);
+	 to_func(char*),
+	 to_atom(char*),
+	 var_info(char*);
 
-void (*funcs[])(char*) = {print, end, comment, let, get_val};
-char *names[] = {"print", "end", "\'", "let", "-v"};
+void (*funcs[])(char*) = {print, end, comment, let, to_func, to_atom, var_info};
+char *names[] = {"print", "end", "\'", "let", "-f", "-a", "-i"};
 
 var array[2048];
 int count = 0;
@@ -62,8 +63,8 @@ void run(char *line) {
 			op_code = is_func(tok);
 		else if (op_code >= 0)
 			(*funcs[op_code])(tok);
-		else if (is_such_var(tok) >= 0)
-			sprintf(result, "%s", array[is_such_var(tok)].val);	
+		else if (*tok == '@' && is_such_var(del_sym(tok, '@')) >= 0)
+			sprintf(result, "%s", array[is_such_var(del_sym(tok, '@'))].val);	
 		else
 			sprintf(result, "%s", tok);
 
@@ -95,6 +96,7 @@ char *del_sym(char *str, int sym) {
 		str++;
 	}
 	*optr = '\0';
+	printf("ds %s\n", out);
 
 	return out;
 }
@@ -129,7 +131,6 @@ void print(char *arg) {
 	char *tmp = "";
 
 	run(arg);
-
 	puts(result);
 	strcpy(result, "#1");
 }
@@ -161,6 +162,7 @@ void let(char *arg) {
 			sprintf(array[indx].val, "%s", tmp);
 		else
 			sprintf(array[indx].val, "#0");
+		strcpy(result, "#1");
 	}
 	else {
 		sprintf(array[count].name, "%s", tmp);
@@ -175,9 +177,10 @@ void let(char *arg) {
 			sprintf(array[count].val, "#0");
 
 		array[count].is_atom = 0;
+
+		strcpy(result, array[count].name);
 		++count;
 	}
-	strcpy(result, "#1");
 }
 
 void get_val(char *arg) {
@@ -188,4 +191,44 @@ void get_val(char *arg) {
 		strcpy(result, array[indx].val);
 	else
 		strcpy(result, "#err");
+}
+
+void to_func(char *arg) {
+	int indx = 0;
+
+	run(arg);
+	indx = is_such_var(result);
+
+	if (indx >= 0)
+		array[indx].is_atom = 0;	
+	else
+		fprintf(stderr, "no such var %s\n", arg);	
+	strcpy(result, arg);
+}
+
+void to_atom(char *arg) {
+	int indx = 0;
+
+	run(arg);
+	indx = is_such_var(result);
+
+	if (indx >= 0)
+		array[indx].is_atom = 1;
+	else
+		fprintf(stderr, "no such var %s\n", arg);	
+	strcpy(result, arg);
+}
+
+void var_info(char *arg) {
+	int indx = 0;
+
+	printf("-i %s\n", arg);
+	run(arg);
+	printf("-i %s\n", result);
+	indx = is_such_var(result);
+
+	if (indx >= 0)
+		sprintf(result, "NAME: %s\nVALUE: %s\nIS_ATOM: %d\n", array[indx].name, array[indx].val, array[indx].is_atom);	
+	else
+		strcpy(result, "#err");	
 }
